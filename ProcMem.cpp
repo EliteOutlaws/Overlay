@@ -2,21 +2,18 @@
 
 using namespace std;
 
-#pragma region Misc Functions
-
+#pragma region misc functions
 ProcMem::ProcMem() {
-
 }
 
 ProcMem::~ProcMem() {
 	if(hProcess != nullptr && hProcess != INVALID_HANDLE_VALUE)
 	{
 		CloseHandle(hProcess);
-	}	
+	}
 }
 
-
-int ProcMem::chSizeOfArray(char *chArray) 
+int ProcMem::chSizeOfArray(char *chArray)
 {
 	for (int iLength = 1; iLength < MAX_PATH; iLength++)
 		if (chArray[iLength] == '*')
@@ -26,7 +23,7 @@ int ProcMem::chSizeOfArray(char *chArray)
 	return 0;
 }
 
-int ProcMem::iSizeOfArray(int *iArray) 
+int ProcMem::iSizeOfArray(char *iArray)
 {
 	for (int iLength = 1; iLength < MAX_PATH; iLength++)
 		if (iArray[iLength] == '*')
@@ -36,7 +33,7 @@ int ProcMem::iSizeOfArray(int *iArray)
 	return 0;
 }
 
-bool ProcMem::iFind(int *iAry, int iVal) 
+bool ProcMem::iFind(int *iAry, int iVal)
 {
 	for (int i = 0; i < 64; i++)
 		if (iVal == iAry[i] && iVal != 0)
@@ -44,17 +41,12 @@ bool ProcMem::iFind(int *iAry, int iVal)
 
 	return false;
 }
-
 #pragma endregion
 
-
-
-#pragma region Memory Functions
-
-
-void ProcMem::Process(char* ProcessName) 
+#pragma region memory functions
+void ProcMem::Process(char* ProcessName)
 {
-	HANDLE hPID = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, NULL);
+	HANDLE hPID = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
 	PROCESSENTRY32 ProcEntry;
 	ProcEntry.dwSize = sizeof(ProcEntry);
 
@@ -74,8 +66,7 @@ void ProcMem::Process(char* ProcessName)
 	exit(0);
 }
 
-
-void ProcMem::Patch(uintptr_t dwAddress, char *Patch_Bts, char *Default_Bts) 
+void ProcMem::Patch(uintptr_t dwAddress, char *Patch_Bts, char *Default_Bts)
 {
 	int iSize = chSizeOfArray(Default_Bts);
 
@@ -89,7 +80,7 @@ void ProcMem::Patch(uintptr_t dwAddress, char *Patch_Bts, char *Default_Bts)
 	bPOn = !bPOn;
 }
 
-uintptr_t ProcMem::AOB_Scan(uintptr_t dwAddress, uintptr_t dwEnd, char *Bytes) 
+uintptr_t ProcMem::AOB_Scan(uintptr_t dwAddress, uintptr_t dwEnd, char *Bytes)
 {
 	int iBytesToRead = 0, iTmp = 0;
 	int length = chSizeOfArray(Bytes);
@@ -126,13 +117,11 @@ uintptr_t ProcMem::AOB_Scan(uintptr_t dwAddress, uintptr_t dwEnd, char *Bytes)
 	return 0;
 }
 
-
-
 uintptr_t ProcMem::Module(LPSTR moduleName)
 {
-	const auto hModule = CreateToolhelp32Snapshot(TH32CS_SNAPMODULE, dwPID); //Take A Module Snapshot Of The Process (Grab All Loaded Modules)
-	MODULEENTRY32 mEntry; //Declare Module Entry Structure
-	mEntry.dwSize = sizeof(mEntry); //Declare Structure Size And Populate It With Loaded Modules
+	const auto hModule = CreateToolhelp32Snapshot(TH32CS_SNAPMODULE, dwPID); // take a module snapshot of the process (grab all loaded modules)
+	MODULEENTRY32 mEntry; // declare module entry structure
+	mEntry.dwSize = sizeof(mEntry); // declare structure size and populate it with loaded modules
 
 	//Scan For Module By Name
 	do

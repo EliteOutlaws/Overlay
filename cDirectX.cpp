@@ -1,6 +1,4 @@
-
 #include "Functions.h"
-#include "cfg.h"
 #include "Offsets.h"
 
 IDirect3D9Ex* p_Object = 0;
@@ -10,32 +8,30 @@ D3DPRESENT_PARAMETERS p_Params;
 ID3DXLine* p_Line;
 ID3DXFont* pFontSmall = 0;
 
-bool btAnimals, btChests, btArtifacts, btSkulls, btShipwrecks, btSkeletons, btMerchants, btTreasureMaps = true;
+bool btDebug;
 
 int DirectXInit(HWND hWnd)
 {
-	if(FAILED(Direct3DCreate9Ex(D3D_SDK_VERSION, &p_Object)))
+	if (FAILED(Direct3DCreate9Ex(D3D_SDK_VERSION, &p_Object)))
 		exit(1);
 
-	ZeroMemory(&p_Params, sizeof(p_Params));    
-    p_Params.Windowed = TRUE;   
-    p_Params.SwapEffect = D3DSWAPEFFECT_DISCARD;    
-    p_Params.hDeviceWindow = hWnd;    
-	p_Params.MultiSampleQuality   = D3DMULTISAMPLE_NONE;
-    p_Params.BackBufferFormat = D3DFMT_A8R8G8B8 ;     
-    p_Params.BackBufferWidth = Width;    
-    p_Params.BackBufferHeight = Height;    
+    ZeroMemory(&p_Params, sizeof(p_Params));
+    p_Params.Windowed = TRUE;
+    p_Params.SwapEffect = D3DSWAPEFFECT_DISCARD;
+    p_Params.hDeviceWindow = hWnd;
+	p_Params.MultiSampleQuality = D3DMULTISAMPLE_NONE;
+    p_Params.BackBufferFormat = D3DFMT_A8R8G8B8 ;
+    p_Params.BackBufferWidth = Width;
+    p_Params.BackBufferHeight = Height;
     p_Params.EnableAutoDepthStencil = TRUE;
     p_Params.AutoDepthStencilFormat = D3DFMT_D16;
 
-	if(FAILED(p_Object->CreateDeviceEx(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, hWnd, D3DCREATE_HARDWARE_VERTEXPROCESSING, &p_Params, 0, &p_Device)))
+	if (FAILED(p_Object->CreateDeviceEx(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, hWnd, D3DCREATE_HARDWARE_VERTEXPROCESSING, &p_Params, 0, &p_Device)))
 		exit(1);
 
-	if(!p_Line)
+	if (!p_Line)
 		D3DXCreateLine(p_Device, &p_Line);
-		//p_Line->SetAntialias(1); *removed cuz crosshair was blurred*
 
-	//D3DXCreateFont(p_Device, 18, 0, 0, 0, false, DEFAULT_CHARSET, OUT_CHARACTER_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH, "Calibri", &pFontSmall);
 	D3DXCreateFont(p_Device, 12, 0, 400, 0, 0, DEFAULT_CHARSET, OUT_CHARACTER_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH, "Tahoma", &pFontSmall);
 
 	return 0;
@@ -50,10 +46,9 @@ int Render()
 	p_Device->Clear(0, 0, D3DCLEAR_TARGET, 0, 1.0f, 0);
 	p_Device->BeginScene();
 
-	if(tWnd == GetForegroundWindow())
+	if (tWnd == GetForegroundWindow())
 	{
 		ReadData();
-			
 			auto World = mem.Read<ULONG_PTR>(WorldAddress);
 			GNames = mem.Read<ULONG_PTR>(NamesAddress);
 			ULONG_PTR owninggameinstance = mem.Read<ULONG_PTR>(World + Offsets::OwningGameInstance);
@@ -62,70 +57,59 @@ int Render()
 			ULONG_PTR PlayerController = mem.Read<ULONG_PTR>(ULocalPlayer + Offsets::PlayerController);
 			auto LocalPlayer = mem.Read<ULONG_PTR>(PlayerController + Offsets::Pawn);
 			auto LocalPlayeState = mem.Read<ULONG_PTR>(PlayerController + Offsets::PlayerState);
-			//auto HealthComponet = mem.Read<ULONG_PTR>(LocalPlayer + Offsets::HealthComponent);
+			auto CameraManager = mem.Read<ULONG_PTR>(PlayerController + Offsets::PlayerCameraManager);
+			auto RootComponent = mem.Read<ULONG_PTR>(LocalPlayer + Offsets::RootComponent);
+
+			//auto HealthComponent = mem.Read<ULONG_PTR>(LocalPlayer + Offsets::HealthComponent);
 			//auto WieldedItemComponent = mem.Read<ULONG_PTR>(LocalPlayer + Offsets::WieldedItemComponent);
 			//auto CurrentWieldedItem = mem.Read<ULONG_PTR>(WieldedItemComponent + Offsets::CurrentlyWieldedItem);
 			//auto pWieldedItem = mem.Read<ULONG_PTR>(CurrentWieldedItem + Offsets::WieldableItemName);
 			//std::wstring ItemWieleded = mem.Read<textx>(pWieldedItem).word;
-			auto CameraManager = mem.Read<ULONG_PTR>(PlayerController + Offsets::PlayerCameraManager);
-			auto RootComponent = mem.Read<ULONG_PTR>(LocalPlayer + Offsets::RootComponent);
 
 			ULONG_PTR ULevel = mem.Read<ULONG_PTR>(World + Offsets::PersistentLevel);
 			int ActorCount = mem.Read<int>(ULevel + Offsets::ActorsTArrayCount);
-
 			std::vector<Vector3> new_XMarksTheSpot;
-
-		//	cfg.SaveCfg();
-		//	cfg.LoadCfg();
-
 			auto LocalNamePointer = mem.Read<ULONG_PTR>(LocalPlayeState + Offsets::PlayerName);
 			auto LocalName = mem.Read<textx>(LocalNamePointer);
 			std::wstring mename = LocalName.word;
 			using convert_type = std::codecvt_utf8<wchar_t>;
 			std::wstring_convert<convert_type, wchar_t> converter;
-			//use converter (.to_bytes: wstr->str, .from_bytes: str->wstr)
 			std::string menamestring = converter.to_bytes(mename);
-
 
 			for (int i = 0; i < ActorCount; i++)
 			{
 				ULONG_PTR ActorList = mem.Read<ULONG_PTR>(ULevel + Offsets::ActorsTArray);
 				ULONG_PTR Actor = mem.Read<ULONG_PTR>(ActorList + (i * 0x8));
+
 				if (!Actor)
 					continue;
+
 				int ActorID = mem.Read<int>(Actor + Offsets::Id);
 				auto ActorRootComponet = mem.Read<ULONG_PTR>(Actor + Offsets::RootComponent);
-				auto Actorrelativelocation = mem.Read<Vector3>(ActorRootComponet + Offsets::RelativeLocation);//owninggameinstance.LocalPlayersPTR->LocalPlayers->PlayerController->PlayerState->RootComponent->RelativeLocation_0;
-				auto ActorYaw = mem.Read<float>(ActorRootComponet + Offsets::RelativeRotationYaw);//owninggameinstance.LocalPlayersPTR->LocalPlayers->PlayerController->PlayerState->RootComponent->RelativeLocation_0;
-
-				/*auto chunk = ActorID / 0x4000;
-				auto fNamePtr = mem.Read<ULONG_PTR>(GNames + chunk * 8);
-				auto fName = mem.Read<ULONG_PTR>(fNamePtr + 8 * (ActorID % 0x4000));
-				auto rs = mem.Read<text>(fName + 16);
-				std::string name = rs.word;*/
+				auto Actorrelativelocation = mem.Read<Vector3>(ActorRootComponet + Offsets::RelativeLocation); // owninggameinstance.LocalPlayersPTR->LocalPlayers->PlayerController->PlayerState->RootComponent->RelativeLocation_0;
+				auto ActorYaw = mem.Read<float>(ActorRootComponet + Offsets::RelativeRotationYaw); // owninggameinstance.LocalPlayersPTR->LocalPlayers->PlayerController->PlayerState->RootComponent->RelativeLocation_0;
 				std::string name = GetActorName(ActorID);
 
 				if (name.find("IslandService") != std::string::npos)
 				{
 					IslandDataAsset_PTR = mem.Read<ULONG_PTR>(Actor + Offsets::IslandDataAsset);
 				}
+
 				if (name.find("BP_") == std::string::npos)
 					continue;
-				
+
 				auto ActorWieldedItemComponent = mem.Read<ULONG_PTR>(Actor + Offsets::WieldedItemComponent);
 				auto ActorCurrentWieldedItem = mem.Read<ULONG_PTR>(ActorWieldedItemComponent + Offsets::CurrentlyWieldedItem);
 				auto ActorpWieldedItem = mem.Read<ULONG_PTR>(ActorCurrentWieldedItem + Offsets::WieldableItemName);
 				std::wstring ActorItemWieleded = mem.Read<textx>(ActorpWieldedItem).word;
 				using convert_type = std::codecvt_utf8<wchar_t>;
 				std::wstring_convert<convert_type, wchar_t> converter;
-				//use converter (.to_bytes: wstr->str, .from_bytes: str->wstr)
 				std::string ActorItemWieleded_str = converter.to_bytes(ActorItemWieleded);
 
 				AActors info;
-
 				info.namesize = GetTextWidth(name.c_str(), pFontSmall);
 				info.item = ActorItemWieleded_str;
-				//if (name.find("BP_PlayerPirate_C") != std::string::npos || name.find("BP_TreasureChest_P") != std::string::npos || name.find("BP_BountyRewardSkull_P") != std::string::npos || name.find("BP_ShipwreckTreasureChest_P") != std::string::npos || (name.find("BP_MerchantCrate") != std::string::npos && name.find("Proxy") != std::string::npos) || name.find("BP_SmallShipTemplate_C") != std::string::npos || name.find("BP_LargeShipTemplate_C") != std::string::npos || name.find("Skeleton") != std::string::npos)
+
 				if (name.find("BP_PlayerPirate_C") != std::string::npos)
 				{
 					const auto Actorhealthcomponet = mem.Read<ULONG_PTR>(Actor + Offsets::HealthComponent);
@@ -138,7 +122,6 @@ int Render()
 					std::wstring test = ActorName.word;
 					using convert_type = std::codecvt_utf8<wchar_t>;
 					std::wstring_convert<convert_type, wchar_t> converter;
-					//use converter (.to_bytes: wstr->str, .from_bytes: str->wstr)
 					std::string converted_str = converter.to_bytes(test);
 
 					if (converted_str == menamestring)
@@ -153,7 +136,6 @@ int Render()
 					info.health = Actorhealth;
 					info.maxhealth = Actormaxhealth;
 					ActorArray.push_back(info);
-
 				}
 				else if (name.find("BP_TreasureChest_P") != std::string::npos || name.find("BP_TreasureChest") != std::string::npos && name.find("Proxy") || name.find("BP_ShipwreckTreasureChest_P") != std::string::npos || name.find("BP_ShipwreckTreasureChest") != std::string::npos && name.find("Proxy") || name.find("StrongholdKey") != std::string::npos)
 				{
@@ -163,26 +145,46 @@ int Render()
 					if (name.find("Common") != std::string::npos)
 					{
 						info.id = ActorID;
-						info.name = "Castaway's Chest";
+						info.name = "Castaway Chest";
 						info.rareity = Common;
+						if (name.find("DVR") != std::string::npos)
+						{
+							info.id = ActorID;
+							info.name = "Ashen Castaway";
+						}
 					}
 					if (name.find("Rare") != std::string::npos)
 					{
 						info.id = ActorID;
-						info.name = "Seafarer's Chest";
+						info.name = "Seafarer Chest";
 						info.rareity = Rare;
+						if (name.find("DVR") != std::string::npos)
+						{
+							info.id = ActorID;
+							info.name = "Ashen Seafarer";
+						}
 					}
 					if (name.find("Legendary") != std::string::npos)
 					{
 						info.id = ActorID;
-						info.name = "Marauder's Chest";
+						info.name = "Marauder Chest";
 						info.rareity = Legendary;
+						if (name.find("DVR") != std::string::npos)
+						{
+							info.id = ActorID;
+							info.name = "Ashen Marauder";
+						}
 					}
 					if (name.find("Mythical") != std::string::npos)
 					{
 						info.id = ActorID;
-						info.name = "Captain's Chest";
+						info.name = "Captain Chest";
 						info.rareity = Mythical;
+						if (name.find("DVR") != std::string::npos)
+						{
+							info.id = ActorID;
+							info.name = "Ashen Captain";
+						}
 					}
 					if (name.find("Drunken") != std::string::npos)
 					{
@@ -218,7 +220,6 @@ int Render()
 				}
 				else if (name.find("BP_BountyRewardSkull_P") != std::string::npos || name.find("BP_BountyRewardSkull") != std::string::npos && name.find("Proxy") != std::string::npos)
 				{
-
 					info.type = skull;
 					info.Location = Actorrelativelocation;
 					info.TopLocation = Vector3(Actorrelativelocation.x, Actorrelativelocation.y, Actorrelativelocation.z + 10);
@@ -243,7 +244,7 @@ int Render()
 					if (name.find("Mythical") != std::string::npos)
 					{
 						info.id = ActorID;
-						info.name = "Villionous Skull";
+						info.name = "Villainous Skull";
 						info.rareity = Mythical;
 					}
 					if (name.find("Fort") != std::string::npos)
@@ -306,18 +307,35 @@ int Render()
 							info.id = ActorID;
 							info.name = "Spice Crate";
 						}
+						else if (name.find("Gemstones") != std::string::npos)
+						{
+							info.id = ActorID;
+							info.name = "Gemstones";
+						}
+						else if (name.find("Minerals") != std::string::npos)
+						{
+							info.id = ActorID;
+							info.name = "Minerals";
+						}
+						else if (name.find("Ore") != std::string::npos)
+						{
+							info.id = ActorID;
+							info.name = "Ore";
+						}
+						else if (name.find("VolcanicStone") != std::string::npos)
+						{
+							info.id = ActorID;
+							info.name = "Volcanic Stone";
+						}
 						else
 						{
 							info.id = ActorID;
 							info.name = "Resource Crate";
 						}
 					}
-					//info.namesize = GetTextWidth(info.name.c_str(), pFontSmall);
 					ActorArray.push_back(info);
 				}
-//
-// Skeleton Fort - Skull Cloud
-//
+				// Skeleton Fort - Skull Cloud
 				else if (name.find("BP_SkellyFort") != std::string::npos)
 				{
 					info.type = fort;
@@ -332,12 +350,20 @@ int Render()
 
 					ActorArray.push_back(info);
 				}
-//
-// Treasure Artifacts (Shinys)
-//
+				// Wonder Secrets Box
+				else if (name.find("BP_BoxOfSecrets") != std::string::npos)
+				{
+					info.id = ActorID;
+					info.type = chest;
+					info.name = "Box Of Secrets";
+					info.Location = Actorrelativelocation;
+					info.TopLocation = Vector3(Actorrelativelocation.x, Actorrelativelocation.y, Actorrelativelocation.z + 300);
+					info.yaw = ActorYaw;
+					ActorArray.push_back(info);
+				}
+				// Treasure Artifacts
 				else if (name.find("BP_TreasureArtifact") != std::string::npos || name.find("BP_Treasure_Artifact") != std::string::npos && name.find("Proxy") != std::string::npos || name.find("BP_TreasureArtifact_Wieldable") != std::string::npos)
 				{
-
 					info.type = artifact;
 					info.Location = Actorrelativelocation;
 					info.TopLocation = Vector3(Actorrelativelocation.x, Actorrelativelocation.y, Actorrelativelocation.z + 10);
@@ -346,54 +372,71 @@ int Render()
 						info.id = ActorID;
 						info.name = "Shiny Box";
 						info.rareity = Common;
+						if (name.find("DVR") != std::string::npos)
+						{
+							info.id = ActorID;
+							info.name = "Ashen Box";
+						}
 					}
 					if (name.find("goblet") != std::string::npos)
 					{
 						info.id = ActorID;
 						info.name = "Shiny Goblet";
 						info.rareity = Rare;
+						if (name.find("DVR") != std::string::npos)
+						{
+							info.id = ActorID;
+							info.name = "Ashen Goblet";
+						}
 					}
 					if (name.find("impressive") != std::string::npos)
 					{
 						info.id = ActorID;
 						info.name = "Shiny Impressive";
 						info.rareity = Legendary;
+						if (name.find("DVR") != std::string::npos)
+						{
+							info.id = ActorID;
+							info.name = "Ashen Impressive";
+						}
 					}
 					if (name.find("vase") != std::string::npos)
 					{
 						info.id = ActorID;
 						info.name = "Shiny Vase";
 						info.rareity = Mythical;
+						if (name.find("DVR") != std::string::npos)
+						{
+							info.id = ActorID;
+							info.name = "Ashen Vase";
+						}
 					}
 					if (name.find("base") != std::string::npos)
 					{
 						info.id = ActorID;
-						info.name = "??Shiny Base??";
+						info.name = "Shiny Base";
 						info.rareity = Rare;
 					}
 
 					ActorArray.push_back(info);
 				}
-				//
-				// SKELETONS
-				//(updated to check for metal/shadow/plant forms)
+				// Skeletons
 				else if (name.find("Skeleton") != std::string::npos)
 				{
 					info.id = ActorID;
-					//Check if Metal/Shadow/Plant Skeletons
 					if (name.find("MetalForm") != std::string::npos)
 					{
-						info.name = "{M} Skeleton";
+						info.name = "Metal Skeleton";
 						info.rareity = Legendary;
 					}
 					else if (name.find("ShadowForm") != std::string::npos)
 					{
-						info.name = "~S~ Skeleton";
+						info.name = "Shadow Skeleton";
 						info.rareity = Mythical;
 					}
 					else if (name.find("PlantForm") != std::string::npos)
 					{
-						info.name = "<P> Skeleton";
+						info.name = "Plant Skeleton";
 						info.rareity = Rare;
 					}
 					else
@@ -408,7 +451,6 @@ int Render()
 				}
 				else if (name.find("BP_Chicken_") != std::string::npos)
 				{
-
 					info.type = chicken;
 					info.Location = Actorrelativelocation;
 					info.TopLocation = Vector3(Actorrelativelocation.x, Actorrelativelocation.y, Actorrelativelocation.z + 10);
@@ -442,7 +484,6 @@ int Render()
 				// Pigs
 				else if (name.find("BP_Pig_") != std::string::npos)
 				{
-
 					info.type = pig;
 					info.Location = Actorrelativelocation;
 					info.TopLocation = Vector3(Actorrelativelocation.x, Actorrelativelocation.y, Actorrelativelocation.z + 10);
@@ -476,7 +517,6 @@ int Render()
 				// Snakes
 				else if (name.find("BP_Snake_") != std::string::npos)
 				{
-
 					info.type = snake;
 					info.Location = Actorrelativelocation;
 					info.TopLocation = Vector3(Actorrelativelocation.x, Actorrelativelocation.y, Actorrelativelocation.z + 10);
@@ -515,6 +555,7 @@ int Render()
 					info.Location = Actorrelativelocation;
 					info.TopLocation = Vector3(Actorrelativelocation.x, Actorrelativelocation.y, Actorrelativelocation.z + 300);
 					info.yaw = ActorYaw;
+
 					ActorArray.push_back(info);
 				}
 				else if (name.find("BP_SmallShipTemplate_C") != std::string::npos || name.find("BP_MediumShipTemplate_C") != std::string::npos || name.find("BP_LargeShipTemplate_C") != std::string::npos)
@@ -525,11 +566,10 @@ int Render()
 					info.Location = Actorrelativelocation;
 					info.TopLocation = Vector3(Actorrelativelocation.x, Actorrelativelocation.y, Actorrelativelocation.z + 300);
 					info.yaw = ActorYaw;
+
 					ActorArray.push_back(info);
 				}
-				///
-				/// GHOST SHIPS
-				///
+				// Ghostship
 				else if (name.find("BP_GhostShip_C") != std::string::npos || name.find("BP_GhostShip") != std::string::npos && name.find("Proxy") != std::string::npos)
 				{
 					info.id = ActorID;
@@ -541,9 +581,7 @@ int Render()
 
 					ActorArray.push_back(info);
 				}
-				///
-				/// Ghostship Captain
-				///
+				// Ghostship Captain
 				else if (name.find("BP_GhostShipCaptain") != std::string::npos)
 				{
 					info.id = ActorID;
@@ -554,17 +592,15 @@ int Render()
 
 					ActorArray.push_back(info);
 				}
-				///
-				/// SHIPWRECKS
-				///
+				// Shipwrecks
 				else if (name.find("BP_Shipwreck_01_a_NetProxy_C") != std::string::npos || name.find("BP_Shipwreck_") != std::string::npos || name.find("BP_Shipwreck") != std::string::npos && name.find("Proxy") != std::string::npos)
 				{
 					info.id = ActorID;
-					info.name = "SHIPWRECK";
+					info.name = "Shipwreck";
 					info.type = animalcrate;
 					info.Location = Actorrelativelocation;
 					info.TopLocation = Vector3(Actorrelativelocation.x, Actorrelativelocation.y, Actorrelativelocation.z + 75);
-					
+
 					ActorArray.push_back(info);
 				}
 				else if (name.find("BP_SunkenCurseArtefact_") != std::string::npos)
@@ -585,10 +621,67 @@ int Render()
 					info.type = animalcrate;
 					info.Location = Actorrelativelocation;
 					info.TopLocation = Vector3(Actorrelativelocation.x, Actorrelativelocation.y, Actorrelativelocation.z + 75);
-					ActorArray.push_back(info);
 
+					ActorArray.push_back(info);
 				}
-				if (IslandDataAsset_PTR != NULL)
+				// SkellyShip Cloud
+				else if (name.find("BP_SkellyShip") != std::string::npos)
+				{
+					info.id = ActorID;
+					info.type = fort;
+					info.name = "SkellyShip Cloud";
+					info.Location = Actorrelativelocation;
+					info.TopLocation = Vector3(Actorrelativelocation.x, Actorrelativelocation.y, Actorrelativelocation.z + 10);
+
+					ActorArray.push_back(info);
+				}
+				// Shark
+				else if (name.find("BP_Shark") != std::string::npos)
+				{
+					info.id = ActorID;
+					info.type = shark;
+					info.name = "Shark";
+					info.Location = Actorrelativelocation;
+					info.TopLocation = Vector3(Actorrelativelocation.x, Actorrelativelocation.y, Actorrelativelocation.z + 10);
+
+					ActorArray.push_back(info);
+				}
+				// Mermaid
+				else if (name.find("BP_Mermaid") != std::string::npos)
+				{
+					info.id = ActorID;
+					info.type = mermaid;
+					info.name = "Mermaid";
+					info.Location = Actorrelativelocation;
+					info.TopLocation = Vector3(Actorrelativelocation.x, Actorrelativelocation.y, Actorrelativelocation.z + 10);
+
+					ActorArray.push_back(info);
+				}
+				// Barrel Seagulls
+				else if (name.find("BP_Seagulls_Barrels") != std::string::npos)
+				{
+					info.id = ActorID;
+					info.type = barrels;
+					info.name = "Barrel Seagulls";
+					info.Location = Actorrelativelocation;
+					info.TopLocation = Vector3(Actorrelativelocation.x, Actorrelativelocation.y, Actorrelativelocation.z + 10);
+
+					ActorArray.push_back(info);
+				}
+				// Hide unwanted items
+				else if ((btDebug) && ((name.find("BP_AthenaPlayerCameraManager") != std::string::npos) || (name.find("BP_Buoyant") != std::string::npos) || (name.find("BP_OnlineAthenaPlayerController") != std::string::npos)))
+				{}
+				// Debug
+				else if (btDebug)
+				{
+					info.id = ActorID;
+					info.name = name;
+					info.Location = Actorrelativelocation;
+					info.TopLocation = Vector3(Actorrelativelocation.x, Actorrelativelocation.y, Actorrelativelocation.z + 10);
+
+					ActorArray.push_back(info);
+				}
+				if (IslandDataAsset_PTR != 0)
 				{
 					if (name == "BP_TreasureMap_C")
 					{
@@ -596,7 +689,7 @@ int Render()
 						std::vector<Vector2> Marks;
 						if (get_TreasureMap(Actor, &MapTexturePath, &Marks))
 						{
-							DWORD_PTR TreasureLocations_PTR = NULL;
+							DWORD_PTR TreasureLocations_PTR = 0;
 							__int32 TreasureLocations_Count = 0;
 
 							if (find_Island_In_IslandDataEntries(
@@ -621,57 +714,41 @@ int Render()
 						}
 					}
 				}
-					/*else if (name.find("GameState") != std::string::npos)
-					{
-						info.id = ActorID;
-						info.name = name;//"AIslandService";
-						//IslandDataAsset_PTR = mem.Read<ULONG_PTR>(Actor + 0x4d0);
-
-						ActorArray.push_back(info);
-					}*/
 			}
 
-				XMarksTheSpot = new_XMarksTheSpot;
-
+			XMarksTheSpot = new_XMarksTheSpot;
 			myLocation = mem.Read<Vector3>(RootComponent + Offsets::RelativeLocation);
 			myAngles = mem.Read<Vector3>(CameraManager + Offsets::CameraRotation);
 			Cameralocation = mem.Read<Vector3>(CameraManager + Offsets::CameraLocation);
-			CameraFov = mem.Read<float>(CameraManager + Offsets::CameraFOV);
-			//auto myhealth  = mem.Read<float>(HealthComponet + Offsets::CurrentHealth);
+			CameraFov = mem.Read<float>(CameraManager + Offsets::DefaultFOV);
+			//auto myhealth = mem.Read<float>(HealthComponet + Offsets::CurrentHealth);
 			//auto maxhealth = mem.Read<float>(HealthComponet + Offsets::MaxHealth);
-			Sleep(2);
-		
-			/// Overlay Drawing...
-			// "XMarksTheSpot" Marks
+			Sleep(20);
+
+			// "XMarksTheSpot"
 			for (int i = 0; i < XMarksTheSpot.size(); i++)
 			{
 				Vector2 ScreenPoints;
 				if (WorldToScreen(XMarksTheSpot.at(i), &ScreenPoints))
-					DrawString("X", ScreenPoints.x, ScreenPoints.y, 255, 0, 0, pFontSmall);
+					DrawString((char*)"X", ScreenPoints.x, ScreenPoints.y, 255, 0, 0, pFontSmall);
 			}
 
-			///[OVERLAY DRAWING»]
-			// Crosshairs/Recticle
-			FillRGB((Width / 2)+30, (Height / 2)+15, 1, 30, 255, 40, 40, 120); //FillRGB((Width / 2) + 15, Height / 2, 1, 30, 1, 225, 1, 120); //GREEN
-			FillRGB((Width / 2)+15, (Height / 2)+30, 30, 1, 255, 40, 40, 120); //FillRGB(Width / 2, (Height / 2) + 15, 30, 1, 1, 225, 1, 120); //GREEN
-			///--OVERLAY DRAWING--///
-			// ESP Radar
+			// Crosshair
+			FillRGB((Width / 2), (Height / 2) - 15, 1, 30, 255, 40, 40, 120);
+			FillRGB((Width / 2) -15, (Height / 2), 30, 1, 255, 40, 40, 120);
+
+			// Radar ESP
 			FillRGB(180, 30, 1, 300, 75, 68, 67, 90);
 			FillRGB(30, 180, 300, 1, 75, 68, 67, 90);
-			//colored rects
-			//FillRGB(30, 30, 300, 300, 255, 255, 255, 100);
-			//DrawLine(30, 180, 330, 180, 0, 0, 0, 255);
-			//DrawLine(180, 30, 180, 330, 0, 0, 0, 255);
 
 			for (int i = 0; i < ActorArray.size(); i++)
 			{
 				float angle = getAngle(Vector2(myLocation.x, myLocation.y), Vector2(ActorArray.at(i).Location.x, ActorArray.at(i).Location.y));
 				Vector2 dist = Vector2((myLocation.x - ActorArray.at(i).Location.x) / 100, (myLocation.y - ActorArray.at(i).Location.y) / 100);
 				int distance = Vector2(myLocation.x, myLocation.y).DistTo(Vector2(ActorArray.at(i).Location.x, ActorArray.at(i).Location.y)) / 100;
-				///-OVERLAY DRAWING
-				//Draw distance (in meters) of Actor from player.
-				ActorArray.at(i).name = ActorArray.at(i).name + " [" + std::to_string(distance) + "m]";
 
+				// Draw distance (in meters) of Actor from player
+				ActorArray.at(i).name = ActorArray.at(i).name + " [" + std::to_string(distance) + "m]";
 				Vector2 point2dist = me - dist;
 				Vector2 ScreenPoint = RotatePoint(point2dist, me, -myAngles.y - 90, false);
 
@@ -683,21 +760,22 @@ int Render()
 					ScreenPoint.x = 330;
 				if (ScreenPoint.y > 330)
 					ScreenPoint.y = 330;
-				/// Player Ship ESP Drawing.
+
+				// Player Ship ESP
 				if (ActorArray.at(i).type == ship)
 				{
 					FillRGB(ScreenPoint.x - 5, ScreenPoint.y - 5, 10, 10, 0, 255, 0, 255);
 					if (WorldToScreen(ActorArray.at(i).Location, &ScreenPoint))
 						DrawString((char*)ActorArray.at(i).name.c_str(), ScreenPoint.x, ScreenPoint.y, 0, 255, 0, pFontSmall);
 				}
-				/// Ghost Ship ESP Drawing
+				// Ghost Ship ESP
 				else if (ActorArray.at(i).type == ghostship)
 				{
 					FillRGB(ScreenPoint.x - 5, ScreenPoint.y - 5, 10, 10, 125, 255, 0, 255);
 					if (WorldToScreen(ActorArray.at(i).Location, &ScreenPoint))
 						DrawString((char*)ActorArray.at(i).name.c_str(), ScreenPoint.x, ScreenPoint.y, 0, 255, 100, pFontSmall);
 				}
-				/// Player ESP Drawing.
+				// Player ESP
 				else if (ActorArray.at(i).type == player)
 				{
 						FillRGB(ScreenPoint.x - 3, ScreenPoint.y - 3, 6, 6, 0, 0, 255, 255);
@@ -705,7 +783,6 @@ int Render()
 
 						if (WorldToScreen(ActorArray.at(i).TopLocation, &headpoint) && WorldToScreen(ActorArray.at(i).Location, &ScreenPoint))
 						{
-							//FillRGB(ScreenPoint.x - 2, ScreenPoint.y - 2, 4, 4, 255, 0, 0, 255);
 							int hi = (ScreenPoint.y - headpoint.y) * 2;
 							int wi = hi * 0.65;
 
@@ -726,67 +803,59 @@ int Render()
 							DrawString(const_cast<char*>(ActorArray.at(i).name.c_str()), headpoint.x - (GetTextWidth(ActorArray.at(i).name.c_str(), pFontSmall) / 2), headpoint.y - 14, 255, 255, 255, pFontSmall);
 							DrawString(const_cast<char*>(ActorArray.at(i).item.c_str()), headpoint.x - (GetTextWidth(ActorArray.at(i).item.c_str(), pFontSmall) / 2), headpoint.y + hi, 255, 255, 255, pFontSmall);
 						}
-					
+
 				}
-				/// Animal Crate ESP Drawing.
+				// Animal Crate ESP
 				else if (ActorArray.at(i).type == animalcrate)
 				{
 					FillRGB(ScreenPoint.x - 2, ScreenPoint.y - 2, 4, 4, 230, 230, 250, 255);
 					if (WorldToScreen(ActorArray.at(i).Location, &ScreenPoint))
 						DrawString(const_cast<char*>(ActorArray.at(i).name.c_str()), ScreenPoint.x, ScreenPoint.y, 230, 230, 250, pFontSmall);
 				}
-				/// Gunpowder ESP Drawing.
+				// Gunpowder ESP
 				else if (ActorArray.at(i).type == gunpowder)
 				{
 					FillRGB(ScreenPoint.x - 2, ScreenPoint.y - 2, 4, 4, 255, 0, 0, 255);
 					if (WorldToScreen(ActorArray.at(i).Location, &ScreenPoint))
 						DrawString(const_cast<char*>(ActorArray.at(i).name.c_str()), ScreenPoint.x, ScreenPoint.y, 255, 0, 0, pFontSmall);
 				}
-				/// Merchant Crate ESP Drawing.
+				// Merchant Crate ESP
 				else if (ActorArray.at(i).type == merchantcrate)
 				{
 					FillRGB(ScreenPoint.x - 2, ScreenPoint.y - 2, 4, 4, 255, 165, 0, 255);
 					if (WorldToScreen(ActorArray.at(i).Location, &ScreenPoint))
 						DrawString(const_cast<char*>(ActorArray.at(i).name.c_str()), ScreenPoint.x, ScreenPoint.y, 255, 165, 0, pFontSmall);
 				}
-				/// Skeleton ESP Drawing.
+				// Skeleton ESP
 				else if (ActorArray.at(i).type == skeleton)
 				{
 					FillRGB(ScreenPoint.x - 2, ScreenPoint.y - 2, 4, 4, 255, 0, 0, 255);
 					Vector2 headpoint;
-				/*	if (false)
-					{
-						Vector3 fsa = CalcAngle(myLocation, ActorArray.at(i).TopLocation);
-						WriteLocalAngles(fsa);
-					}*/
+
 					if (WorldToScreen(ActorArray.at(i).TopLocation, &headpoint) && WorldToScreen(ActorArray.at(i).Location, &ScreenPoint))
 					{
-						//FillRGB(ScreenPoint.x - 2, ScreenPoint.y - 2, 4, 4, 255, 0, 0, 255);
 						int hi, wi;
 						hi = (ScreenPoint.y - headpoint.y) * 2;
 						wi = hi * 0.65;
 
 						DrawBox(headpoint.x - wi / 2, headpoint.y, wi, hi, 1, 255, 0, 0, 255);
 					}
-
 				}
-				/// Skeleton Ship Captain ESP Drawing.
+				// Skeleton Ship Captain ESP
 				else if (ActorArray.at(i).type == ghostcaptain)
 				{
 					FillRGB(ScreenPoint.x - 2, ScreenPoint.y - 2, 4, 4, 255, 0, 0, 255);
 					Vector2 headpoint;
 					if (WorldToScreen(ActorArray.at(i).TopLocation, &headpoint) && WorldToScreen(ActorArray.at(i).Location, &ScreenPoint))
 					{
-						//FillRGB(ScreenPoint.x - 2, ScreenPoint.y - 2, 4, 4, 255, 0, 0, 255);
 						int hi, wi;
 						hi = (ScreenPoint.y - headpoint.y) * 2;
 						wi = hi * 0.65;
 
 						DrawBox(headpoint.x - wi / 2, headpoint.y, wi, hi, 1, 255, 100, 100, 255);
 					}
-
 				}
-				/// ESP Drawing by Rareity.
+				// Rareity ESP
 				else if (ActorArray.at(i).rareity == Common)
 				{
 					FillRGB(ScreenPoint.x - 2, ScreenPoint.y - 2, 4, 4, 165, 42, 42, 255);
@@ -807,23 +876,11 @@ int Render()
 				}
 				else if (ActorArray.at(i).rareity == Mythical)
 				{
-					/*FillRGB(ScreenPoint.x - 3, ScreenPoint.y - 3, 6, 6, 0, 0, 255, 255);
-					Vector2 headpoint;
-					if (WorldToScreen(ActorArray.at(i).TopLocation, &headpoint) && WorldToScreen(ActorArray.at(i).Location, &ScreenPoint))
-					{
-						//FillRGB(ScreenPoint.x - 2, ScreenPoint.y - 2, 4, 4, 255, 0, 0, 255);
-						int hi, wi;
-						hi = (ScreenPoint.y - headpoint.y) * 2;
-						wi = hi;
-
-						DrawBox(headpoint.x - wi / 2, headpoint.y, wi, hi, 1, 0, 0, 255, 255);
-						DrawString((char*)ActorArray.at(i).name.c_str(), ScreenPoint.x - (ActorArray.at(i).namesize / 2), ScreenPoint.y + hi / 2, 0, 0, 255, pFontSmall);
-					}*/
 					FillRGB(ScreenPoint.x - 2, ScreenPoint.y - 2, 4, 4, 75, 0, 130, 255);
 					if (WorldToScreen(ActorArray.at(i).Location, &ScreenPoint))
 						DrawString(const_cast<char*>(ActorArray.at(i).name.c_str()), ScreenPoint.x, ScreenPoint.y, 75, 0, 130, pFontSmall);
 				}
-				/// All Other ESP Drawing.
+				// All Other ESP
 				else
 				{
 					FillRGB(ScreenPoint.x - 2, ScreenPoint.y - 2, 4, 4, 255, 215, 0, 255);
@@ -832,16 +889,22 @@ int Render()
 				}
 
 				ActorArray.erase(ActorArray.begin() + i);
-			}//END DRAWING
-
+			}
 	}
 
-	///-KEYBOARD INPUT--
 	// F9 - Exit ESP
 	if (GetAsyncKeyState(VK_F9) & 1)
-	{ exit(1); }
+	{
+		exit(1);
+	}
 	else if (GetAsyncKeyState(VK_F8) & 1)
-	{ btAnimals = false; }
+	{
+		btDebug = false;
+	}
+	else if (GetAsyncKeyState(VK_F7) & 1)
+	{
+		btDebug = true;
+	}
 
 	p_Device->EndScene();
 	p_Device->PresentEx(0, 0, 0, 0, 0);
