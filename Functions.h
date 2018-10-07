@@ -21,15 +21,12 @@ struct Color
 ULONG_PTR GNames;
 ProcMem mem;
 DWORD pid;
-uintptr_t BASE;
 bool FirstRun = true;
-uintptr_t WorldAddress;
-uintptr_t ObjectsAddress;
-uintptr_t NamesAddress;
+uintptr_t BASE, NamesAddress, WorldAddress, ObjectsAddress;
 char SoTGame[256] = "SoTGame.exe";
 
-Vector3 myLocation, myAngles, Cameralocation;
-float CameraFov;
+Vector3 myLocation, myAngles, CameraCachePOV;
+float DefaultFOV;
 
 void ReadData()
 {
@@ -42,21 +39,27 @@ void ReadData()
 		FirstRun = false;
 
 		auto address = IgroWidgets::FindPatternExternal(mem.hProcess, reinterpret_cast<HMODULE>(BASE),
+			reinterpret_cast<const unsigned char*>("\x48\x8B\x3D\x00\x00\x00\x00\x48\x85\xFF\x75\x00\xB9\x00\x00\x00\x00\xE8\x00\x00\x00\x00\x48\x8B\xF8\x48\x89\x44"),
+			"xxx????xxxx?x????x????xxxxxx");
+		if (address > 0)
+		{
+			NamesAddress = IgroWidgets::ReadRIPAddress(mem.hProcess, address, 3, 7);
+		}
+
+		address = IgroWidgets::FindPatternExternal(mem.hProcess, reinterpret_cast<HMODULE>(BASE),
 			reinterpret_cast<const unsigned char*>("\x48\x8B\x0D\x00\x00\x00\x00\x48\x8B\x01\xFF\x90\x00\x00\x00\x00\x48\x8B\xF8\x33\xD2\x48\x8D\x4E"),
 			"xxx????xxxxx????xxxxxxxx");
-
 		if (address > 0)
 		{
 			WorldAddress = IgroWidgets::ReadRIPAddress(mem.hProcess, address, 3, 7);
 		}
 
 		address = IgroWidgets::FindPatternExternal(mem.hProcess, reinterpret_cast<HMODULE>(BASE),
-			reinterpret_cast<const unsigned char*>("\x48\x8B\x3D\x00\x00\x00\x00\x48\x85\xFF\x75\x00\xB9\x00\x00\x00\x00\xE8\x00\x00\x00\x00\x48\x8B\xF8\x48\x89\x44"),
-			"xxx????xxxx?x????x????xxxxxx");
-
+			reinterpret_cast<const unsigned char*>("\x89\x1D\x00\x00\x00\x00\x48\x8B\xDF\x48\xC1\xE3\x04\x33\xD2"),
+			"xx????xxxxxxxxx");
 		if (address > 0)
 		{
-			NamesAddress = IgroWidgets::ReadRIPAddress(mem.hProcess, address, 3, 7);
+			ObjectsAddress = IgroWidgets::ReadRIPAddress(mem.hProcess, address, 2, 6);
 		}
 	}
 }
@@ -73,39 +76,25 @@ public:
 	wchar_t word[64];
 };
 
-enum rareity
-{
-	Common,
-	Rare,
-	Legendary,
-	Mythical,
-	Fort,
-	Weeping,
-	Drunken
-};
-
 enum type
 {
-	chest,
-	skull,
-	artifact,
-	merchantcrate,
-	animalcrate,
-	gunpowder,
-	player,
-	skeleton,
+	// type
 	ship,
-	chicken,
-	pig,
-	snake,
-	fort,
 	ghostship,
+	player,
+	animalcrate,
+	merchantcrate,
+	skeleton,
 	ghostcaptain,
-	volcano,
-	secretBox,
-	barrels,
-	shark,
-	mermaid
+	secretbox,
+	limited,
+	other,
+	unknown,
+	// rarity
+	common,
+	rare,
+	legendary,
+	mythical
 };
 
 struct AActors
@@ -114,7 +103,7 @@ struct AActors
 	std::string name, item;
 	Vector3 Location;
 	Vector3 TopLocation;
-	int type, rareity, namesize;
+	int type, namesize;
 	float health, maxhealth;
 	float yaw;
 	int distance;
@@ -189,13 +178,13 @@ bool WorldToScreen(Vector3 origin, Vector2 * out) {
 	vAxisY = Vector3(tempMatrix[1][0], tempMatrix[1][1], tempMatrix[1][2]);
 	vAxisZ = Vector3(tempMatrix[2][0], tempMatrix[2][1], tempMatrix[2][2]);
 
-	Vector3 vDelta = origin - Cameralocation;
+	Vector3 vDelta = origin - CameraCachePOV;
 	Vector3 vTransformed = Vector3(vDelta.Dot(vAxisY), vDelta.Dot(vAxisZ), vDelta.Dot(vAxisX));
 
 	if (vTransformed.z < 1.f)
 		vTransformed.z = 1.f;
 
-	float FovAngle = CameraFov;
+	float FovAngle = DefaultFOV;
 	float ScreenCenterX = Width / 2.0f;
 	float ScreenCenterY = Height / 2.0f;
 
