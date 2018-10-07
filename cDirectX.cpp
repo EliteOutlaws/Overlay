@@ -60,10 +60,6 @@ int Render()
 			auto CameraManager = mem.Read<ULONG_PTR>(PlayerController + Offsets::PlayerCameraManager);
 			auto RootComponent = mem.Read<ULONG_PTR>(LocalPlayer + Offsets::RootComponent);
 			//auto HealthComponent = mem.Read<ULONG_PTR>(LocalPlayer + Offsets::HealthComponent);
-			//auto WieldedItemComponent = mem.Read<ULONG_PTR>(LocalPlayer + Offsets::WieldedItemComponent);
-			//auto CurrentWieldedItem = mem.Read<ULONG_PTR>(WieldedItemComponent + Offsets::CurrentlyWieldedItem);
-			//auto pWieldedItem = mem.Read<ULONG_PTR>(CurrentWieldedItem + Offsets::WieldableItemName);
-			//std::wstring ItemWielded = mem.Read<textx>(pWieldedItem).word;
 
 			ULONG_PTR ULevel = mem.Read<ULONG_PTR>(World + Offsets::PersistentLevel);
 			int ActorCount = mem.Read<int>(ULevel + Offsets::ActorsTArrayCount);
@@ -97,17 +93,11 @@ int Render()
 				if (name.find("BP_") == std::string::npos)
 					continue;
 
-				auto ActorWieldedItemComponent = mem.Read<ULONG_PTR>(Actor + Offsets::WieldedItemComponent);
-				auto ActorCurrentWieldedItem = mem.Read<ULONG_PTR>(ActorWieldedItemComponent + Offsets::CurrentlyWieldedItem);
-				auto ActorpWieldedItem = mem.Read<ULONG_PTR>(ActorCurrentWieldedItem + Offsets::WieldableItemName);
-				std::wstring ActorItemWielded = mem.Read<textx>(ActorpWieldedItem).word;
 				using convert_type = std::codecvt_utf8<wchar_t>;
 				std::wstring_convert<convert_type, wchar_t> converter;
-				std::string ActorItemWielded_str = converter.to_bytes(ActorItemWielded);
 
 				AActors info;
 				info.namesize = GetTextWidth(name.c_str(), pFontSmall);
-				info.item = ActorItemWielded_str;
 
 				if (name.find("BP_PlayerPirate_C") != std::string::npos)
 				{
@@ -827,10 +817,10 @@ int Render()
 
 						if (WorldToScreen(ActorArray.at(i).TopLocation, &headpoint) && WorldToScreen(ActorArray.at(i).Location, &ScreenPoint))
 						{
-							int hi = (ScreenPoint.y - headpoint.y) * 2;
-							int wi = hi * 0.65;
 							if (btHitbox)
 							{
+								int hi = (ScreenPoint.y - headpoint.y) * 2;
+								int wi = hi * 0.65;
 								DrawBox(headpoint.x - wi / 2, headpoint.y, wi, hi, 1, 0, 0, 255, 255);
 								int health = ActorArray.at(i).health;
 								if (health > 100)
@@ -844,7 +834,6 @@ int Render()
 								FillRGB(headpoint.x - wi / 2 - 5, headpoint.y + healthBarDelta, 3, healthBar, r, g, 0, 255);
 							}
 							DrawString((char*)(ActorArray.at(i).name.c_str()), headpoint.x - (GetTextWidth(ActorArray.at(i).name.c_str(), pFontSmall) / 2), headpoint.y - 14, 255, 255, 255, pFontSmall);
-							DrawString((char*)(ActorArray.at(i).item.c_str()), headpoint.x - (GetTextWidth(ActorArray.at(i).item.c_str(), pFontSmall) / 2), headpoint.y + hi, 255, 255, 255, pFontSmall);
 						}
 				}
 				// Animal Crate ESP

@@ -8,17 +8,8 @@ public:
 	// :APlayerCameraManager:DefaultFOV:SoT_Engine_classes.hpp
 	static constexpr int DefaultFOV = 0x04A8;
 
-	// :AAthenaCharacter:WieldedItemComponent:SoT_Athena_classes.hpp
-	static constexpr int WieldedItemComponent = 0x0830;
-
 	// :AAthenaCharacter:HealthComponent:SoT_Athena_classes.hpp
 	static constexpr int HealthComponent = 0x0858;
-
-	// :UWieldedItemComponent:CurrentlyWieldedItem:SoT_Athena_classes.hpp
-	static constexpr int CurrentlyWieldedItem = 0x02B8;
-
-	// :AWieldableItem:ItemName:SoT_Athena_classes.hpp
-	static constexpr int WieldableItemName = 0x0588; // ItemName property
 
 	// :APlayerCameraManager:CameraCache:SoT_Engine_classes.hpp
 	static constexpr int CameraCache = 0x0500;

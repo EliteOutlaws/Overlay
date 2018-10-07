@@ -1,4 +1,4 @@
-#include "hMain.h"
+#include "hDirectX.h"
 
 int Width = 800;
 int Height = 600;
